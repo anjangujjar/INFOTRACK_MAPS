@@ -57,31 +57,6 @@ export default function Home() {
     }
   }, []);
 
-  const handlePlaceChanged = (index) => {
-    const place = autocompleteRefs.current[index].getPlace();
-    if (place.geometry) {
-      const destination = {
-        name: place.name,
-        lat: place.geometry.location.lat(),
-        lng: place.geometry.location.lng(),
-      };
-
-      setDestinations((prevDestinations) => {
-        const newDestinations = [...prevDestinations];
-        newDestinations[index] = destination;
-
-        // Add a new input box if this is the last input box
-        if (index === prevDestinations.length - 1) {
-          newDestinations.push(null);
-        }
-
-        return newDestinations;
-      });
-    } else {
-      console.error("No details available for input: '" + place.name + "'");
-    }
-  };
-
   useEffect(() => {
     if (isLoaded && destinations.length > 0) {
       const directionsService = new window.google.maps.DirectionsService();
@@ -215,6 +190,12 @@ export default function Home() {
     newDestinations.splice(dragIndex, 1);
     newDestinations.splice(hoverIndex, 0, dragDestination);
     setDestinations(newDestinations);
+
+    // Update the Autocomplete refs array after reordering
+    const newAutocompleteRefs = [...autocompleteRefs.current];
+    const movedAutocompleteRef = newAutocompleteRefs.splice(dragIndex, 1)[0];
+    newAutocompleteRefs.splice(hoverIndex, 0, movedAutocompleteRef);
+    autocompleteRefs.current = newAutocompleteRefs;
   };
 
   const handleDragStart = (index) => (event) => {
@@ -229,14 +210,32 @@ export default function Home() {
     event.preventDefault();
     const dragIndex = parseInt(event.dataTransfer.getData('index'));
     moveDestination(dragIndex, index);
-
-    // Update the Autocomplete references after reordering
-    const newAutocompleteRefs = [...autocompleteRefs.current];
-    const movedAutocomplete = newAutocompleteRefs.splice(dragIndex, 1)[0];
-    newAutocompleteRefs.splice(index, 0, movedAutocomplete);
-    autocompleteRefs.current = newAutocompleteRefs;
   };
 
+  const handlePlaceChanged = (index) => {
+    const place = autocompleteRefs.current[index].getPlace();
+    if (place.geometry) {
+      const destination = {
+        name: place.name,
+        lat: place.geometry.location.lat(),
+        lng: place.geometry.location.lng(),
+      };
+
+      setDestinations((prevDestinations) => {
+        const newDestinations = [...prevDestinations];
+        newDestinations[index] = destination;
+
+        // Add a new input box if this is the last input box
+        if (index === prevDestinations.length - 1) {
+          newDestinations.push(null);
+        }
+
+        return newDestinations;
+      });
+    } else {
+      console.error("No details available for input: '" + place.name + "'");
+    }
+  };
 
   if (loadError) return 'Error loading maps';
   if (!isLoaded) return 'Loading Maps';
@@ -252,7 +251,7 @@ export default function Home() {
           zoom={8}
           center={coordinates}
           options={options}
-          onLoad={onLoad} // Use the onLoad function directly
+          onLoad={onLoad}
         >
           {animationMarker && (
             <Marker
@@ -288,41 +287,38 @@ export default function Home() {
               </div>
             </InfoWindow>
           )}
-          {destinations.map((destination, index) => (
-            destination && (
-              <Autocomplete
-                key={index} // Ensure each Autocomplete has a unique key
-                onLoad={(autocomplete) => autocompleteRefs.current[index] = autocomplete}
-                onPlaceChanged={() => handlePlaceChanged(index)}
-              >
-                <input
-                  type="text"
-                  placeholder={`Enter destination ${index + 1}`}
-                  style={{
-                    boxSizing: `border-box`,
-                    border: `1px solid transparent`,
-                    width: `240px`,
-                    height: `32px`,
-                    padding: `0 12px`,
-                    borderRadius: `3px`,
-                    boxShadow: `0 2px 6px rgba(0, 0, 0, 0.3)`,
-                    fontSize: `14px`,
-                    outline: `none`,
-                    textOverflow: `ellipses`,
-                    position: "absolute",
-                    left: "85%",
-                    marginLeft: "-120px",
-                    marginTop: `${10 + index * 40}px`,
-                  }}
-                  draggable
-                  onDragStart={handleDragStart(index)}
-                  onDragOver={handleDragOver(index)}
-                  onDrop={handleDrop(index)}
-                />
-              </Autocomplete>
-            )
+          {destinations.map((_, index) => (
+            <Autocomplete
+              key={index} // Ensure each Autocomplete has a unique key
+              onLoad={(autocomplete) => autocompleteRefs.current[index] = autocomplete}
+              onPlaceChanged={() => handlePlaceChanged(index)}
+            >
+              <input
+                type="text"
+                placeholder={`Enter destination ${index + 1}`}
+                style={{
+                  boxSizing: `border-box`,
+                  border: `1px solid transparent`,
+                  width: `240px`,
+                  height: `32px`,
+                  padding: `0 12px`,
+                  borderRadius: `3px`,
+                  boxShadow: `0 2px 6px rgba(0, 0, 0, 0.3)`,
+                  fontSize: `14px`,
+                  outline: `none`,
+                  textOverflow: `ellipses`,
+                  position: "absolute",
+                  left: "85%",
+                  marginLeft: "-120px",
+                  marginTop: `${10 + index * 40}px`,
+                }}
+                draggable
+                onDragStart={handleDragStart(index)}
+                onDragOver={handleDragOver(index)}
+                onDrop={handleDrop(index)}
+              />
+            </Autocomplete>
           ))}
-
         </GoogleMap>
         {totalDistance && (
           <div style={{ marginTop: '20px', fontSize: '18px' }}>
